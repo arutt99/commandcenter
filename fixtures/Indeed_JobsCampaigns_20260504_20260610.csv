@@ -1,0 +1,5 @@
+Campaign,Premium,Impressions,Clickthrough rate (CTR),Clicks,Apply start rate (ASR),Apply starts,Apply completion rate (ACR),Applies,Apply rate (AR),Spend,Cost per click (CPC),Cost per apply start (CPAS),Cost per apply (CPA),Job Count,Avg clicks per job,Avg apply starts per job,Avg applies per job,Avg spend per job
+"Local Driver – Example City, MN",Yes,200,0.1,20,0.2,4,0.75,3,0.15,15.25,0.7625,3.8125,5.08,1,20,4,3,15.25
+Jobs not in a campaign,No,100,0.1,10,0.2,2,0.5,1,0.1,0,0,0,0,2,5,1,0.5,0
+Standard Plan – Example Freight,No,0,–,0,–,0,–,0,–,10.10,–,–,–,3,–,–,–,–
+Regional bundle,Yes,50,0.1,5,0.2,1,1,1,0.2,4.65,0.93,4.65,4.65,2,2.5,0.5,0.5,2.325
