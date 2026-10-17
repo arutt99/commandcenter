@@ -1,0 +1,11 @@
+node_modules
+.next
+package-lock.json
+fixtures
+local-data
+private-storage
+test-results
+playwright-report
+Wayfind_Command_Center_Build_Plan_v2.md
+docs/build-plan.md
+next-env.d.ts
