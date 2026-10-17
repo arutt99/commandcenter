@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { getDb, type Database } from '../db';
 import {
   auditLog,
@@ -19,7 +19,7 @@ import {
   type MetaRow,
   type Source,
 } from '../importers/types';
-import { assertAdmin, type Actor } from '../permissions';
+import type { Actor } from '../local/owner';
 import { storage, type PrivateStorage } from './storage';
 
 type Dependencies = { db: Database; files: PrivateStorage };
@@ -34,8 +34,7 @@ export class ImportService {
     )
       throw new ImportError('Client is unavailable.');
   }
-  async history(actor: Actor, clientId: string) {
-    assertAdmin(actor);
+  async history(_actor: Actor, clientId: string) {
     await this.client(clientId);
     return this.deps.db
       .select()
@@ -43,8 +42,7 @@ export class ImportService {
       .where(eq(imports.clientId, clientId))
       .orderBy(desc(imports.createdAt));
   }
-  async get(actor: Actor, clientId: string, id: string) {
-    assertAdmin(actor);
+  async get(_actor: Actor, clientId: string, id: string) {
     await this.client(clientId);
     const item = await this.deps.db.query.imports.findFirst({
       where: and(eq(imports.id, id), eq(imports.clientId, clientId)),
@@ -67,7 +65,6 @@ export class ImportService {
     buffer: Buffer,
     source?: Source,
   ) {
-    assertAdmin(actor);
     await this.client(clientId);
     if (buffer.length > MAX_BYTES) throw new ImportError('Limit is 10 MB.');
     const parsed = await parseFile(buffer, fileName, source);
@@ -77,9 +74,6 @@ export class ImportService {
     let stored: string | undefined;
     try {
       return await this.deps.db.transaction(async (tx) => {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtext(${clientId + ':' + selected}))`,
-        );
         const duplicate = await tx.query.imports.findFirst({
           where: and(
             eq(imports.clientId, clientId),
@@ -135,12 +129,8 @@ export class ImportService {
       expectedActiveId: string;
     },
   ) {
-    assertAdmin(actor);
-    const original = await this.get(actor, clientId, id);
+    await this.get(actor, clientId, id);
     return this.deps.db.transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${clientId + ':' + original.source}))`,
-      );
       const item = await tx.query.imports.findFirst({
         where: and(eq(imports.id, id), eq(imports.clientId, clientId)),
       });
@@ -198,8 +188,8 @@ export class ImportService {
             'Meta dates must match the reporting dates in the file.',
           );
       }
-      for (let offset = 0; offset < result.rows.length; offset += 500) {
-        const rows = result.rows.slice(offset, offset + 500);
+      for (let offset = 0; offset < result.rows.length; offset += 100) {
+        const rows = result.rows.slice(offset, offset + 100);
         if (item.source === 'meta')
           await tx.insert(metaRows).values(
             (rows as MetaRow[]).map((r) => ({
@@ -245,12 +235,8 @@ export class ImportService {
     });
   }
   async revert(actor: Actor, clientId: string, id: string) {
-    assertAdmin(actor);
-    const original = await this.get(actor, clientId, id);
+    await this.get(actor, clientId, id);
     await this.deps.db.transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${clientId + ':' + original.source}))`,
-      );
       const target = await tx.query.imports.findFirst({
         where: and(eq(imports.id, id), eq(imports.clientId, clientId)),
       });
@@ -276,12 +262,8 @@ export class ImportService {
     });
   }
   async cancel(actor: Actor, clientId: string, id: string) {
-    assertAdmin(actor);
     const original = await this.get(actor, clientId, id);
     await this.deps.db.transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${clientId + ':' + original.source}))`,
-      );
       const item = await tx.query.imports.findFirst({
         where: and(eq(imports.id, id), eq(imports.clientId, clientId)),
       });

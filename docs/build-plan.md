@@ -1,3 +1,5 @@
+> **Direction changed:** the user authorized a single-owner local app without dashboard sign-in. [local-app-plan.md](local-app-plan.md) supersedes the hosted/auth/database/staff/hosting choices below. Product definitions and later-feature boundaries still apply.
+
 # Wayfind Command Center — Build Plan (v2)
 
 Version 2.0 · October 17, 2026

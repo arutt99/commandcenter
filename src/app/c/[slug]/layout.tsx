@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { eq } from 'drizzle-orm';
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { getClient } from '@/server/clients';
 import { getDb } from '@/server/db';
 import { clients } from '@/server/db/schema';
 import { ClientSwitcher } from '@/components/client-switcher';
-import { signOut } from '@/app/sign-in/actions';
 export default async function ClientLayout({
   children,
   params,
@@ -13,7 +12,7 @@ export default async function ClientLayout({
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
 }) {
-  const user = await requireUser();
+  await requireLocal();
   const { slug } = await params;
   const client = await getClient(slug);
   const list = await getDb()
@@ -30,12 +29,7 @@ export default async function ClientLayout({
           </Link>
           <div className="flex items-center gap-6">
             <ClientSwitcher current={slug} clients={list} />
-            <span className="muted hidden text-sm sm:block">
-              {user.name} · {user.role}
-            </span>
-            <form action={signOut}>
-              <button className="secondary">Sign out</button>
-            </form>
+            <Link href="/local">Local data & backups</Link>
           </div>
         </div>
       </header>

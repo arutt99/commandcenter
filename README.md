@@ -1,91 +1,107 @@
-# Wayfind Command Center
+# Wayfind Command Center — local edition
 
-Phase 3: a client dashboard built from active Meta, Indeed and DriverHub uploads, with visible source dates, six headline KPIs, a recruiting snapshot, exact candidate drilldowns and filtered advertising tables. Admin-only imports replace the active source snapshot; history supports audited revert.
+A private reporting app for one owner, running on his own computer. Open it from a shortcut, choose a client, upload Meta/Indeed/DriverHub exports, and view the dashboard. There is **no dashboard account, sign-in, password, invitation, Supabase project, Docker installation or database server** to set up.
 
-The app uses Next.js, PostgreSQL/Drizzle and invite-only Supabase Auth. See [docs/status.md](docs/status.md) for verification and remaining external setup, and [docs/metrics.md](docs/metrics.md) for calculation definitions.
+The browser is the screen; a small local program handles files and reporting. Everything is stored on this machine. This is not a standalone HTML file or a hosted service. Automatic vendor connections remain future work; their provider permissions will still be required.
 
-## Local setup (Windows / PowerShell)
+## One-time setup
 
-Install Node.js 22+ and Docker Desktop. Use a Supabase development project owned by Wayfind (or local Supabase).
+Your setup helper needs Node.js **22.12 or newer** (Node 24 LTS recommended) and a copy of this repository on the owner's machine. Install the app and build it from the app folder:
+
+```powershell
+npm run setup
+```
+
+Internet access is needed for the initial dependency installation. Normal upload/reporting use works offline afterward. No `.env` file is required.
+
+**Windows:** double-click `Start Wayfind.cmd`. Create a desktop shortcut to that file if desired. **macOS:** double-click `Start Wayfind.command`; the helper may need to mark it executable with `chmod +x "Start Wayfind.command"`. **Linux:** run `./Start\ Wayfind.command`, or use the command below on any platform:
+
+```powershell
+npm start
+```
+
+The launcher opens [127.0.0.1:4310](http://127.0.0.1:4310) in the default browser. Keep the terminal window open while using the app. Press Ctrl+C in that window to stop it; closing the browser tab alone does not stop the app. Use `npm start -- --no-open` to start without opening a browser.
+
+The launcher creates and migrates the local database automatically and checks for outdated builds. The shortcut rebuilds when app code or the Node major version changes. After an update, close the running app and run `npm run setup` before reopening it. Start with **Manage clients → Add a client**. No real or demo clients are inserted automatically. `npm run db:seed` optionally adds two clearly synthetic clients for a demo.
+
+## Where the data lives
+
+| System  | Default data folder                                                                 |
+| ------- | ----------------------------------------------------------------------------------- |
+| Windows | `%LOCALAPPDATA%\Wayfind Command Center`                                             |
+| macOS   | `~/Library/Application Support/Wayfind Command Center`                              |
+| Linux   | `$XDG_DATA_HOME/wayfind-command-center`, or `~/.local/share/wayfind-command-center` |
+
+The **Local data & backups** page shows the actual folder on his machine. Inside it, `store/command-center.sqlite` holds clients, settings, parsed reports and audit history; `store/originals/` holds original uploads. Money is stored as exact text and calculated with decimal.js. Data is separate from the app source, so replacing/updating the app does not replace the data.
+
+Protect this data with the computer's user account, screen lock and disk encryption as appropriate. The app does not encrypt the database or backup folders itself. Keep the data folder on a local disk; do not run it directly from a network share or a cloud-synced folder.
+
+Optional settings can be put in `.env` (copy `.env.example`):
+
+```dotenv
+# Optional custom private data folder. Use an absolute path.
+# WAYFIND_DATA_DIR=C:/Users/YourName/WayfindData
+WAYFIND_PORT=4310
+```
+
+No vendor credentials are needed for uploads. Legacy `DATABASE_URL`, Supabase and file-storage settings are unused.
+
+## Weekly reporting
+
+1. Add/select a client, then open **Imports**.
+2. Upload the client's Meta CSV, Indeed CSV or DriverHub XLSX. Source detection can be overridden.
+3. Review totals, warnings, ambiguous fields and the active report being replaced. Confirm reporting dates or the candidate snapshot date.
+4. Activate, then open **Dashboard**. Uploads replace the active snapshot for that source; historical data is never added to the current totals.
+5. Click any recruiting count to open its exact candidate population, with 25 records per page. Same-name records remain separate. Links retain the snapshot and stage mapping even if new data is uploaded later.
+
+Meta and Indeed report periods are shown separately. Missing uploads say **Not uploaded**; a valid empty upload has zero counts/spend. Filters recompute selected table totals, while headline spend uses the complete active import. Definitions are available on focus/hover or KPI details. Edit interview/onboarding statuses in client **Settings**; provisional definitions are documented in [docs/metrics.md](docs/metrics.md).
+
+Import history supports downloading originals, reverting confirmed imports, and deleting previews. Upload limits remain 10 MiB/50,000 rows; XLSX must have the `Data` sheet and plain values. Formulas, macros, external links and excessive archive expansion are rejected. No candidate data is intentionally logged.
+
+## Backup and restore
+
+Open **Local data & backups → Create backup now** before important changes. A backup is a folder containing a consistent database snapshot, all originals referenced by that snapshot, and a checksum manifest. The app also creates daily automatic backups on startup and checks hourly while running; it retains seven automatic backups. Manual and pre-restore backups are kept until you remove them.
+
+**Copy complete backup folders to an external drive or another safe location.** Keeping backups on the same computer does not protect against losing that computer. Backups contain private candidate data.
+
+To make a backup from the command line, close the app first:
+
+```powershell
+npm run backup
+```
+
+To restore, close the app's terminal window and have the helper run:
+
+```powershell
+npm run restore -- "full path to the saved backup folder" --confirm
+npm start
+```
+
+The restore validates the database, every original and their checksums before touching the current store. It stages and rechecks copied files, preserves the current store in `.previous-*`, and attempts a separate pre-restore backup. Recovery can still proceed if the current database is corrupt. Do not delete `.previous-*` directories until you are satisfied with the restored result. The instance lock prevents a restore while the app is running; after an unexpected shutdown, stale-lock recovery may take up to two minutes.
+
+## Local access and future connections
+
+The launcher binds to **127.0.0.1 only**. Host, origin and browser request-context checks reject external hosts and cross-origin requests; frames are denied. The serving process owns the data-folder lock. There are no user accounts, roles, invitations or cloud auth bypasses. Do not expose the app using port forwarding, tunnels or a public host. Other programs running as the same computer user already have equivalent access to these files.
+
+The pure importers/reporting code remains separate from storage and screens. Future Meta/Indeed/DriverHub deliveries can use the same preview/activation rules and one-active-import model. Future refresh jobs will run locally while the app and computer are on. Provider approvals are still unverified; OAuth/API credentials should use the OS credential vault when those integrations are implemented, not browser storage or an HTML file. No automatic source connection or token store is claimed by this change.
+
+The user-approved direction is recorded in [docs/local-app-plan.md](docs/local-app-plan.md); it supersedes the hosted/auth/database choices in the original build plan. For an existing hosted/PostgreSQL installation, keep its backups and originals: **this release does not automatically convert that database**. Recreate client settings and re-upload the original exports into the local app before retiring a hosted copy.
+
+## Development and checks
 
 ```powershell
 npm ci
-Copy-Item .env.example .env
-docker compose up -d db
-```
-
-Edit `.env` with the project's Supabase URL, anon key and service role key. Keep the service role key server-only. The example PostgreSQL connection matches Compose.
-
-Configure Supabase Auth:
-
-1. Disable **Allow new users to sign up**. There is no public signup in the app, and only active entries in `users` can access it.
-2. Set the site URL to `http://localhost:3000` and allow `http://localhost:3000/auth/callback` as a redirect URL.
-3. For invitations, use this template link: `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite`. The callback verifies it server-side and writes session cookies. Email sign-in links use PKCE.
-4. Use email links to sign in after accepting an invitation, or set a password through your Supabase account administration. There is no public password/signup flow.
-
-```powershell
-npm run db:migrate
-npm run db:seed
-npm run create-admin -- your-email@example.com
 npm run dev
-```
-
-Open [localhost:3000](http://localhost:3000). The seed creates **Example Freight** and **Sample Transport**; both are synthetic. An admin can use **Manage clients** to add the real pilot client or edit branding/timezone. Client selection is kept in the URL. Use Manage clients to invite additional users as staff or administrators. Only admins can access imports and raw files; active staff can view dashboards, candidate lists and settings.
-
-On macOS/Linux, use `cp .env.example .env` instead of `Copy-Item`. The remaining setup commands are the same. The create-admin command sends an actual invitation when run with live credentials; no real invitation was sent during implementation.
-
-## Weekly import workflow
-
-1. Select the client and open **Imports**. Choose the file and leave source detection on, or override it. Supported headers are in [docs/build-plan.md](docs/build-plan.md), Appendix B.
-2. Review totals, validation errors, warnings, ambiguous-cell counts, and the dataset being replaced.
-3. Confirm dates. Meta dates come from the file. Indeed filename dates and DriverHub's newest creation date are suggestions that must be explicitly confirmed. Empty files require dates entered manually.
-4. Activate. Only a valid preview can activate. A different active import since preview requires a reload and review.
-5. Review history to download an original or revert a superseded import. Cancel deletes a preview and its private file. A failed preview can be cancelled before retrying an identical file.
-
-Same-file duplicates are detected by SHA-256 for each client/source, including renamed files. Historical data is retained, but queries must select `imports.status = 'active'`; never sum history with active data. Candidates are individual rows, even when names match.
-
-## Reporting dashboard
-
-Open `/c/example-freight/dashboard` after uploading and activating exports. Missing sources show **Not uploaded** while available sources still render. A valid empty upload has zero counts/spend. Source cards show the report period or candidate snapshot and upload date; periods are not assumed to match across sources.
-
-Click any recruiting count to open that exact population, with 25 candidate rows per page. Links retain the original snapshot and stage mapping if either subsequently changes. Superseded snapshots are labelled historical. Candidate names remain separate records, and ambiguous fields show **Needs review** instead of inferred statuses.
-
-Meta delivery and Indeed type filters live in the URL and recompute the selected table totals. Header spend includes the full active export. Metric definitions are available on focus/hover and in KPI details. Administrators can edit exact interview/onboarding statuses in **Settings**; changes are audited. Default definitions remain provisional.
-
-The owner demo is pending. Put real exports in `local-data/`, run reconciliation, and review one pilot client's dashboard with the owner. Record actual feedback in [docs/decisions.md](docs/decisions.md) before Phase 4. There are no live vendor connections, channel-attribution calculations, alerts or PDF exports in Phase 3.
-
-Limits: 10 MiB, 50,000 rows, 100 MiB actual/declared inflated XLSX contents, 2,000 ZIP entries. XLSX requires the `Data` sheet and plain values. Macros, external workbook links, formulas, rich-text/hyperlink/error cells are rejected. Nothing is evaluated. Errors identify rows and columns without copying candidate data.
-
-## Private originals
-
-Local development stores originals in `private-storage/` outside public assets, under random keys with restricted filesystem permissions. Do not place this directory under `public/` or expose it through another web server.
-
-For hosting, set `FILE_STORAGE=supabase`, create a **private** bucket named `import-originals`, and set `SUPABASE_STORAGE_BUCKET` if using a different name. Keep browser storage policies deny-all. The server verifies that the bucket is private before reads/uploads and streams downloads only after admin authorization. Vercel cannot use disk storage. Other hosts may use disk only with a private persistent volume. Live Supabase storage has not been verified in this environment.
-
-Run versioned SQL migrations using `npm run db:migrate`. The server DB connection must own the tables or use a dedicated BYPASSRLS role. Every application table and migration bookkeeping table has RLS with **no policies**, denying access to ordinary browser database roles. Do not use the anon key as the server database credential.
-
-## Checks
-
-```powershell
-npm run lint
 npm run format:check
+npm run lint
 npm run typecheck
 npm test
-npm run build
-```
-
-Database and browser tests need a disposable database whose name ends in `_test`. They truncate its application tables. Never point them at a real-data database.
-
-```powershell
-docker compose exec db createdb -U wayfind wayfind_test
-$env:TEST_DATABASE_URL = "postgresql://wayfind:wayfind@localhost:5432/wayfind_test"
 npm run test:integration
+npm run build
 npx playwright install chromium
 npm run test:e2e
 ```
 
-On macOS/Linux use `export TEST_DATABASE_URL=postgresql://wayfind:wayfind@localhost:5432/wayfind_test`. Browser tests use a local synthetic Supabase HTTP fixture, real Next.js production server, and real PostgreSQL. Production auth has no test bypass. They verify all three upload formats, preview/confirmation/replacement/duplicate rejection/bad-row rejection/revert/download, sign-out and staff restrictions, dashboard totals/filters, every recruiting count and its paginated list, cross-client access, stage settings, keyboard definitions, mobile layout, and delayed client switching. Run them after `npm run build`. A system Chromium is used when available, or set `CHROMIUM_PATH`.
+Integration tests create temporary SQLite stores and clean them up. Browser tests run the real production launcher on port 4311 with a dedicated synthetic store under `test-results/local-e2e`; they need no credentials, auth fixture or database server. They test imports, reporting, candidate pagination, client switching, offline screens, client management, backups, origin/host restrictions and the instance lock. The new lockfile includes native SQLite packages for supported platforms; Windows/macOS launcher and browser-opening behavior need a smoke test on the owner's actual machine.
 
-Synthetic fixtures are committed; regenerate them with `npm run fixtures`. Put real exports in git-ignored `local-data/` and run `npm run reconcile`. This prints parser aggregates, dashboard metrics and detected date metadata without candidate names or raw rows. Compare with Appendix C only for the sample client/period documented there. Use the same confirmed dashboard period/snapshot; Indeed filename dates and the newest DriverHub creation date are suggestions. No files returns exit code 2 (not verified); parse errors return 1. Never commit real exports.
-
-CI runs format, lint, typecheck, parser/reporting tests, PostgreSQL integration tests, production build, and Playwright with synthetic data. Live Supabase verification, real-file reconciliation and owner demo feedback require Wayfind/developer setup and inputs.
+Put real exports only in git-ignored `local-data/` and run `npm run reconcile` to print parser/reporting aggregates without candidate names. No files returns exit 2; invalid files return 1. Compare the same confirmed dates/snapshot with the owner's trusted report. See [docs/status.md](docs/status.md) for actual verification and outstanding owner-demo inputs.

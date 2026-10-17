@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { getClient } from '@/server/clients';
-import { AccessError } from '@/server/permissions';
 import { ImportError, ImportService } from '@/server/imports/service';
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
-  const actor = await requireUser();
+  const actor = await requireLocal();
   const { slug, id } = await params;
   if (!z.uuid().safeParse(id).success)
     return new NextResponse('Not found', { status: 404 });
@@ -28,18 +27,8 @@ export async function GET(
       },
     });
   } catch (error) {
-    return new NextResponse(
-      error instanceof AccessError
-        ? 'Administrator access required.'
-        : 'Original file is unavailable.',
-      {
-        status:
-          error instanceof AccessError
-            ? 403
-            : error instanceof ImportError
-              ? 404
-              : 503,
-      },
-    );
+    return new NextResponse('Original file is unavailable.', {
+      status: error instanceof ImportError ? 404 : 503,
+    });
   }
 }

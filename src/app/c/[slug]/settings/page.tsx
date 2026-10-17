@@ -1,4 +1,4 @@
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { getClient } from '@/server/clients';
 import { getDb } from '@/server/db';
 import { clientSettings } from '@/server/db/schema';
@@ -12,7 +12,7 @@ export default async function Settings({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
-  const user = await requireUser();
+  await requireLocal();
   const client = await getClient((await params).slug);
   const saved = await getDb().query.clientSettings.findFirst({
     where: eq(clientSettings.clientId, client.id),
@@ -50,7 +50,7 @@ export default async function Settings({
         Signed dates, start dates and application outcomes remain separate
         rules. Referral-source mapping and alerts arrive in Phase 4.
       </p>
-      {user.role === 'admin' ? (
+      {
         <form
           action={saveStages.bind(null, client.slug)}
           className="max-w-xl space-y-4"
@@ -77,14 +77,7 @@ export default async function Settings({
           </label>
           <button>Save stage mapping</button>
         </form>
-      ) : (
-        <dl>
-          <dt className="muted">Interview stage</dt>
-          <dd>{stages.interviewStatuses.join(', ')}</dd>
-          <dt className="muted mt-3">Onboarding</dt>
-          <dd>{stages.onboardingStatuses.join(', ')}</dd>
-        </dl>
-      )}
+      }
     </section>
   );
 }

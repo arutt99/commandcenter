@@ -1,5 +1,36 @@
 # Implementation status
 
+## 2026-10-17 — Local single-owner edition (user-approved change)
+
+**Converted to a local app without dashboard accounts or cloud setup.** This supersedes the hosted Supabase/PostgreSQL/staff setup requirements in the historical phase entries below; [local-app-plan.md](local-app-plan.md) is the current architecture.
+
+Removed Supabase login/callback/session-refresh code, invitations, roles, auth dependencies and the Docker/PostgreSQL setup. Added file-backed SQLite/Drizzle with automatic versioned migrations, exact decimal text fields, foreign keys and the existing unique active-import constraint. Existing parsers, activation/replacement/revert, reporting, client isolation and paginated populations remain in place.
+
+Added loopback-only startup, host/origin/browser-context guards, no-store/frame restrictions, a single-instance data-folder lock owned by the actual serving process, OS-specific private data paths, Windows and macOS/Linux launchers, browser opening and stale-build detection. Added a Local data & backups screen, manual/daily backups with database/original checksums, offline staged restore with preservation of the previous store, and seven-copy automatic backup retention. Current source integrations remain upload-based; no vendor tokens or API connections were invented.
+
+### How to run
+
+Install Node 22.12+ (24 LTS recommended) and run `npm run setup` once. Open `Start Wayfind.cmd` on Windows, `Start Wayfind.command` on macOS/Linux, or run `npm start`. The app opens at `http://127.0.0.1:4310`; no environment file or credentials are required. Add a client in Manage clients. Data lives in the owner's OS application-data folder; the Local data & backups page shows its location. Follow the updated README for external backup copies and offline restore. Existing hosted databases are not silently converted or modified.
+
+### Actual checks
+
+- 51 unit tests passed (23 parser, 13 metrics and 15 local-boundary/config checks).
+- 21 real SQLite integration tests passed (9 imports, 5 reporting and 7 backup/restore/locking tests), with temporary stores and no external database.
+- Production build passed with local routes and retired auth routes absent.
+- Formatting, lint, TypeScript, build freshness and `git diff --check` passed. Local verification used Node 24 on Linux; remote CI was not run during implementation.
+- Seven production-launcher Chromium journeys passed without an auth fixture: full imports/replacement/revert/download, reporting and all count/list populations, missing sources, delayed client switching, offline operation, client management, manual backup, denied foreign/cross-origin requests, loopback binding and blocked second-instance/restore access.
+- Local migrations and synthetic seed were each run twice successfully. The offline restore command was exercised against the synthetic browser-test backup.
+
+Backup tests restore clients, exact totals and original file bytes; reject damaged checksums/path traversal; recover a corrupted current database without deleting the old store; check automatic daily deduplication; and serialize a backup with an in-flight activation. Existing transaction rollback/concurrent-confirmation tests now run on SQLite. Browser tests and fixture creation use only dedicated synthetic folders under `test-results/`, never the default owner data folder.
+
+### Remaining inputs and limits
+
+- **Owner/setup helper:** smoke-test Windows/macOS shortcut launching and default-browser opening on the actual target machine. Linux production launch, local data, browser UI and offline restore were exercised here; no Windows/macOS GUI session was available.
+- **Owner/setup helper:** copy a backup to a separate device and verify the desired data location. App data/backups are protected by local filesystem access; the app does not encrypt them.
+- **Owner/developer:** supply real exports/trusted report, reconcile the dashboard, confirm provisional definitions and record actual demo feedback before building later product phases. No real exports were available.
+- **Owner/developer:** prove vendor permissions for future automatic connections. These will still require internet/provider authorization and run while the local app/computer are on; none are connected yet.
+- No automated PostgreSQL-to-SQLite converter, packaged executable installer, remote access or multi-user mode is included. Existing hosted users must preserve backups/originals and recreate clients/settings/re-upload exports before retiring the old app.
+
 ## 2026-10-17 — Phase 3: Metrics and first dashboard
 
 **Implemented and verified with synthetic imports. Real-file reconciliation and the owner demo checkpoint remain pending.**

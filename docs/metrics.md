@@ -1,6 +1,6 @@
 # Dashboard metric definitions — Phase 3
 
-All calculations use only the active import for the selected client and source. The server reads sources and their rows in one repeatable-read transaction. Imports are snapshots: superseded, preview and failed imports are never added to active data. Each metric carries its label, definition, source, source period/snapshot, value and a reason when unavailable. Source upload timestamps use the client's configured timezone; export calendar dates are shown as recorded.
+All calculations use only the active import for the selected client and source. The server reads sources and their rows in one SQLite transaction. Imports are snapshots: superseded, preview and failed imports are never added to active data. Each metric carries its label, definition, source, source period/snapshot, value and a reason when unavailable. Source upload timestamps use the client's configured timezone; export calendar dates are shown as recorded.
 
 Missing uploads show **Not uploaded** and an unavailable value (—). A valid empty export has zero counts/spend and undefined ratios. A real zero numerator with a positive denominator has a 0% rate. Ratios with zero denominators are unavailable. Money and ratios use decimal.js; aggregate counts remain exact decimal strings even beyond JavaScript's safe-integer limit. Display rounds money to two decimal places and percentages to two decimal places after calculation.
 

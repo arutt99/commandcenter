@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { Pool } from 'pg';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import path from 'node:path';
+import { openDatabase } from '../../src/server/db/connection';
+import { LOCAL_OWNER as actor } from '../../src/server/local/owner';
 import ExcelJS from 'exceljs';
 import Papa from 'papaparse';
 import * as schema from '../../src/server/db/schema';
@@ -11,12 +12,9 @@ import { candidateXLSX, indeedCSV, metaCSV } from '../../scripts/fixtures';
 const slug = 'dashboard-fixture';
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(async () => {
-  const url = process.env.TEST_DATABASE_URL;
-  if (!url || !new URL(url).pathname.endsWith('_test'))
-    throw new Error('Disposable TEST_DATABASE_URL required.');
-  const pool = new Pool({ connectionString: url });
+  const opened = await openDatabase(path.resolve('test-results/local-e2e'));
   try {
-    const db = drizzle(pool, { schema });
+    const db = opened.db;
     const [client] = await db
       .insert(schema.clients)
       .values({ name: 'Dashboard Fixture', slug })
@@ -25,15 +23,10 @@ test.beforeAll(async () => {
       name: 'Empty Dashboard Fixture',
       slug: 'empty-dashboard-fixture',
     });
-    process.env.PRIVATE_STORAGE_DIR = './test-results/dashboard-originals';
-    process.env.FILE_STORAGE = 'disk';
-    const service = new ImportService({ db, files: storage() });
-    const actor = {
-      id: '00000000-0000-4000-8000-000000000001',
-      name: 'Fixture Admin',
-      role: 'admin' as const,
-      active: true,
-    };
+    const service = new ImportService({
+      db,
+      files: storage(opened.paths.originals),
+    });
     const csvRows = [
       metaCSV(),
       metaCSV('20.20', {
@@ -92,23 +85,16 @@ test.beforeAll(async () => {
       snapshotDate: '2026-06-10',
     });
   } finally {
-    await pool.end();
+    opened.close();
   }
 });
-async function login(page: Page, role = 'staff') {
-  await page.goto('/sign-in');
-  await page.getByLabel('Email', { exact: true }).fill(`${role}@example.test`);
-  await page.getByLabel('Password', { exact: true }).fill('synthetic-password');
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Your clients' }),
-  ).toBeVisible();
+async function openDashboard(page: Page) {
   await page.goto(`/c/${slug}/dashboard`);
 }
-test('staff see reconciled KPIs, filtered ad totals, exact paginated candidate populations and mobile tables', async ({
+test('owner sees reconciled KPIs, filtered ad totals, exact paginated candidate populations and mobile tables', async ({
   page,
 }) => {
-  await login(page);
+  await openDashboard(page);
   await expect(page.locator('[data-kpi="Total candidates"]')).toContainText(
     '30',
   );
@@ -208,7 +194,7 @@ test('staff see reconciled KPIs, filtered ad totals, exact paginated candidate p
 test('missing sources remain explicit and delayed client navigation never relabels another client’s dashboard', async ({
   page,
 }) => {
-  await login(page);
+  await openDashboard(page);
   await page.evaluate(() => {
     const errors: string[] = [];
     (window as unknown as { clientMismatches: string[] }).clientMismatches =
@@ -251,8 +237,7 @@ test('missing sources remain explicit and delayed client navigation never relabe
     ),
   ).toEqual([]);
   // Existing imports journey leaves a Meta-only client. Upload directly here to keep this check independent of test order.
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await login(page, 'admin');
+  await openDashboard(page);
   await page.goto('/c/empty-dashboard-fixture/imports');
   await page.getByLabel('Export file').setInputFiles('fixtures/meta.csv');
   await page.getByRole('button', { name: 'Upload and preview' }).click();

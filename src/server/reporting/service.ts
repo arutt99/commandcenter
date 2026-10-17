@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb, type Database } from '../db';
 import {
@@ -10,7 +10,7 @@ import {
   indeedRows,
   metaRows,
 } from '../db/schema';
-import { assertAdmin, type Actor } from '../permissions';
+import type { Actor } from '../local/owner';
 import {
   candidateMatches,
   stageSettings,
@@ -20,10 +20,6 @@ import {
 } from './metrics';
 
 export class ReportingError extends Error {}
-function assertMember(actor: Actor) {
-  if (!actor.active || !['admin', 'staff'].includes(actor.role))
-    throw new ReportingError('Active staff access is required.');
-}
 export function sourcePeriod(
   item:
     | {
@@ -41,8 +37,7 @@ export function sourcePeriod(
 }
 export class ReportingService {
   constructor(private db: Database = getDb()) {}
-  async dashboard(actor: Actor, slug: string) {
-    assertMember(actor);
+  async dashboard(_actor: Actor, slug: string) {
     // One consistent snapshot across source selection and row reads, even during activation/revert.
     return this.db.transaction(
       async (tx) => {
@@ -95,18 +90,17 @@ export class ReportingService {
             : null,
         };
       },
-      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+      { behavior: 'deferred' },
     );
   }
   async candidates(
-    actor: Actor,
+    _actor: Actor,
     slug: string,
     importId: string,
     filter: CandidateFilter,
     requestedPage: number,
     settingsOverride?: StageSettings,
   ) {
-    assertMember(actor);
     if (!z.uuid().safeParse(importId).success)
       throw new ReportingError('Snapshot is unavailable.');
     return this.db.transaction(
@@ -156,24 +150,29 @@ export class ReportingService {
           rows: filtered.slice((page - 1) * pageSize, page * pageSize),
         };
       },
-      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+      { behavior: 'deferred' },
     );
   }
   async saveStages(actor: Actor, slug: string, input: unknown) {
-    assertAdmin(actor);
     const stages = stageSettingsSchema.parse(input);
     await this.db.transaction(async (tx) => {
       const client = await tx.query.clients.findFirst({
         where: and(eq(clients.slug, slug), eq(clients.active, true)),
       });
       if (!client) throw new ReportingError('Client is unavailable.');
+      const saved = await tx.query.clientSettings.findFirst({
+        where: eq(clientSettings.clientId, client.id),
+      });
       await tx
         .insert(clientSettings)
         .values({ clientId: client.id, settings: { stages } })
         .onConflictDoUpdate({
           target: clientSettings.clientId,
           set: {
-            settings: sql`${clientSettings.settings} || ${JSON.stringify({ stages })}::jsonb`,
+            settings: {
+              ...((saved?.settings as Record<string, unknown>) ?? {}),
+              stages,
+            },
           },
         });
       await tx.insert(auditLog).values({

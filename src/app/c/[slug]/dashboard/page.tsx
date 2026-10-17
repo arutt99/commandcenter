@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import {
   ReportingError,
   ReportingService,
@@ -24,7 +24,7 @@ export default async function Dashboard({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ meta?: string; indeed?: string }>;
 }) {
-  const actor = await requireUser();
+  const actor = await requireLocal();
   const { slug } = await params;
   const data = await new ReportingService()
     .dashboard(actor, slug)
@@ -76,11 +76,11 @@ export default async function Dashboard({
             Uploaded reports · source periods shown separately
           </p>
         </div>
-        {actor.role === 'admin' && (
+        {
           <Link className="button secondary" href={`/c/${slug}/imports`}>
             Manage uploads
           </Link>
-        )}
+        }
       </div>
       <section aria-label="Source status" className="grid gap-3 md:grid-cols-3">
         {(['meta', 'indeed', 'driverhub'] as const).map((source) => {
@@ -252,8 +252,7 @@ export default async function Dashboard({
           </div>
         ) : (
           <p className="notice">
-            Not uploaded. An administrator can upload a DriverHub candidate
-            export in Imports.
+            Not uploaded. Upload a DriverHub candidate export in Imports.
           </p>
         )}
       </section>

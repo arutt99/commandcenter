@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Decimal from 'decimal.js';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { getClient } from '@/server/clients';
 import { ImportService } from '@/server/imports/service';
 import { PendingButton } from '@/components/pending-button';
@@ -28,16 +28,11 @@ export default async function Preview({
   params: Promise<{ slug: string; id: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
-  const actor = await requireUser();
+  const actor = await requireLocal();
   const { slug, id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const client = await getClient(slug);
-  if (actor.role !== 'admin')
-    return (
-      <p className="notice">
-        Only administrators can access import previews and original files.
-      </p>
-    );
+
   const service = new ImportService();
   const item = await service.get(actor, client.id, id);
   const active = (await service.history(actor, client.id)).find(

@@ -2,35 +2,17 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Pool } from 'pg';
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../src/server/db/schema';
 import { ImportService } from '../src/server/imports/service';
 import { storage } from '../src/server/imports/storage';
-import type { Actor } from '../src/server/permissions';
+import { LOCAL_OWNER as actor } from '../src/server/local/owner';
+import { openDatabase, type Database } from '../src/server/db/connection';
 import { metaCSV, candidateXLSX, indeedCSV } from '../scripts/fixtures';
-import { migrate } from '../scripts/migrate';
-const url = process.env.TEST_DATABASE_URL;
-if (!url || !new URL(url).pathname.endsWith('_test'))
-  throw new Error(
-    'Set TEST_DATABASE_URL to a disposable PostgreSQL database ending in _test.',
-  );
-const pool = new Pool({ connectionString: url });
-const db = drizzle(pool, { schema });
-const actor: Actor = {
-  id: randomUUID(),
-  name: 'Fixture admin',
-  role: 'admin',
-  active: true,
-};
-const staff: Actor = {
-  id: randomUUID(),
-  name: 'Fixture staff',
-  role: 'staff',
-  active: true,
-};
+let opened: Awaited<ReturnType<typeof openDatabase>>;
+let db: Database;
+let temporary: string;
 const clientId = randomUUID();
 const otherClient = randomUUID();
 let root: string;
@@ -41,30 +23,22 @@ const dates = (expectedActiveId = '') => ({
   periodEnd: '2026-06-09',
   expectedActiveId,
 });
-beforeAll(async () => {
-  await migrate(url);
-  root = await mkdtemp(path.join(os.tmpdir(), 'wayfind-import-test-'));
-  process.env.PRIVATE_STORAGE_DIR = root;
-  process.env.FILE_STORAGE = 'disk';
-  service = new ImportService({ db, files: storage() });
-});
 beforeEach(async () => {
-  await db.execute(sql`TRUNCATE audit_log, imports, users, clients CASCADE`);
-  await db
-    .insert(schema.users)
-    .values(
-      [actor, staff].map((a) => ({ ...a, email: `${a.id}@example.test` })),
-    );
+  temporary = await mkdtemp(path.join(os.tmpdir(), 'wayfind-import-test-'));
+  opened = await openDatabase(temporary);
+  db = opened.db;
+  root = opened.paths.originals;
+  service = new ImportService({ db, files: storage(root) });
   await db.insert(schema.clients).values([
     { id: clientId, name: 'Fixture Freight', slug: 'fixture-freight' },
     { id: otherClient, name: 'Other fixture', slug: 'other-fixture' },
   ]);
 });
-afterAll(async () => {
-  await pool.end();
-  if (root) await rm(root, { recursive: true, force: true });
+afterEach(async () => {
+  opened?.close();
+  if (temporary) await rm(temporary, { recursive: true, force: true });
 });
-describe('transactional private imports with PostgreSQL', () => {
+describe('transactional private imports with local SQLite', () => {
   it('previews without rows, guards duplicates, replaces rather than adds, and audits revert', async () => {
     const first = await service.preview(
       actor,
@@ -237,19 +211,15 @@ describe('transactional private imports with PostgreSQL', () => {
       'b.csv',
       Buffer.from(metaCSV('20')),
     );
-    await db.execute(
-      sql`CREATE FUNCTION test_fail_activation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action = 'import.confirm' THEN RAISE EXCEPTION 'synthetic failure'; END IF; RETURN NEW; END $$`,
-    );
-    await db.execute(
-      sql`CREATE TRIGGER fail_activation BEFORE INSERT ON audit_log FOR EACH ROW EXECUTE FUNCTION test_fail_activation()`,
+    await db.run(
+      sql`CREATE TRIGGER fail_activation BEFORE INSERT ON audit_log WHEN NEW.action = 'import.confirm' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END`,
     );
     try {
       await expect(
         service.confirm(actor, clientId, second.id, dates(first.id)),
       ).rejects.toThrow();
     } finally {
-      await db.execute(sql`DROP TRIGGER fail_activation ON audit_log`);
-      await db.execute(sql`DROP FUNCTION test_fail_activation()`);
+      await db.run(sql`DROP TRIGGER fail_activation`);
     }
     expect((await service.get(actor, clientId, first.id)).status).toBe(
       'active',
@@ -280,38 +250,18 @@ describe('transactional private imports with PostgreSQL', () => {
     await expect(service.get(actor, clientId, item.id)).rejects.toThrow(
       'not found',
     );
-    await expect(storage().read(item.storagePath)).rejects.toThrow();
-    await expect(storage().read('../../escape')).rejects.toThrow(
+    await expect(storage(root).read(item.storagePath)).rejects.toThrow();
+    await expect(storage(root).read('../../escape')).rejects.toThrow(
       'Invalid storage key',
     );
   });
-  it('authorizes every service operation and scopes imports to the client', async () => {
+  it('scopes imports to their client and allows the local owner to manage them', async () => {
     const item = await service.preview(
       actor,
       clientId,
       'meta.csv',
       Buffer.from(metaCSV()),
     );
-    for (const member of [staff, { ...actor, active: false }]) {
-      await expect(
-        service.preview(member, clientId, 'm.csv', Buffer.from(metaCSV())),
-      ).rejects.toThrow('Administrator');
-      await expect(
-        service.confirm(member, clientId, item.id, dates()),
-      ).rejects.toThrow('Administrator');
-      await expect(service.revert(member, clientId, item.id)).rejects.toThrow(
-        'Administrator',
-      );
-      await expect(service.cancel(member, clientId, item.id)).rejects.toThrow(
-        'Administrator',
-      );
-      await expect(service.download(member, clientId, item.id)).rejects.toThrow(
-        'Administrator',
-      );
-      await expect(service.history(member, clientId)).rejects.toThrow(
-        'Administrator',
-      );
-    }
     await expect(service.get(actor, otherClient, item.id)).rejects.toThrow(
       'not found',
     );
@@ -326,38 +276,27 @@ describe('transactional private imports with PostgreSQL', () => {
       ).status,
     ).toBe('preview');
   });
-  it('enables RLS and denies a database reader even when granted SELECT', async () => {
-    await pool.query(
-      "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'wayfind_test_reader') THEN CREATE ROLE wayfind_test_reader NOLOGIN; END IF; END $$",
+  it('enforces foreign keys and keeps exact decimal text in the local database', async () => {
+    const first = await service.preview(
+      actor,
+      clientId,
+      'precise.csv',
+      Buffer.from(metaCSV('9999999999999999.999999')),
     );
-    await pool.query(
-      'GRANT USAGE ON SCHEMA public TO wayfind_test_reader; GRANT SELECT ON ALL TABLES IN SCHEMA public TO wayfind_test_reader',
+    await service.confirm(actor, clientId, first.id, dates());
+    expect((await db.select().from(schema.metaRows))[0].spend).toBe(
+      '9999999999999999.999999',
     );
-    const c = await pool.connect();
-    try {
-      await c.query('SET ROLE wayfind_test_reader');
-      expect((await c.query('SELECT * FROM users')).rows).toHaveLength(0);
-      expect((await c.query('SELECT * FROM clients')).rows).toHaveLength(0);
-    } finally {
-      await c.query('RESET ROLE');
-      c.release();
-    }
-    const state = await pool.query(
-      'SELECT relname FROM pg_class WHERE relname = ANY($1) AND NOT relrowsecurity',
-      [
-        [
-          'users',
-          'clients',
-          'client_settings',
-          'imports',
-          'meta_rows',
-          'indeed_rows',
-          'candidate_rows',
-          'audit_log',
-          'schema_migrations',
-        ],
-      ],
-    );
-    expect(state.rows).toHaveLength(0);
+    await expect(
+      db
+        .insert(schema.imports)
+        .values({ ...first, id: randomUUID(), clientId: randomUUID() }),
+    ).rejects.toThrow();
+    expect(
+      Number(
+        (await opened.client.execute('PRAGMA foreign_keys')).rows[0]
+          .foreign_keys,
+      ),
+    ).toBe(1);
   });
 });
