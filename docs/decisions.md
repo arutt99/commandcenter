@@ -12,6 +12,20 @@
 - Private disk storage is intended for development/persistent private volumes. Hosted Supabase uses a private bucket verified at runtime and a server-only service key. No public URLs or signed download URLs are emitted. Cancellation commits DB deletion before removing its file: a storage deletion outage can leave a private orphan requiring operator cleanup, but cannot remove an active import. Storage and SQL cannot share a distributed transaction.
 - Auth is tested through a synthetic Supabase HTTP fixture, not a production auth bypass. Database lifecycle tests use actual PostgreSQL 17.11. No claims of live Supabase/vendor connectivity or real-file reconciliation are made.
 
-## Owner decisions still open
+## 2026-10-17 — Phase 3
+
+- Updated the clean checkout to the merged Phase 2 foundation (`e9f3c9f`) before implementing reporting. No earlier-phase app was recreated. The referenced HTML prototype is still absent; the dashboard extends the existing Wayfind teal/white shell and the sections specified in the plan.
+- Pure reporting functions use decimal.js with 40-digit precision and return source/period/definition/null-reason metadata. Money stays decimal, rates are recomputed from sums, and unknown Meta link-click results make dependent metrics unavailable. Table totals follow the visible filters; header spend includes the complete active source import. No combined spend across mismatched periods is offered.
+- Native semantic HTML tables and server GET filters keep reporting data server-side and preserve filters in URLs without adding a client table dependency. Horizontal regions are keyboard focusable; metric definitions are exposed on focus/hover and KPI details. No charts imply daily data or dated funnel transitions.
+- The reporting service uses repeatable-read, read-only transactions so import activation/revert cannot mix old and new rows in a response. Client-specific loading boundaries replace pending content during navigation. Candidate links retain their snapshot ID, plus stage mapping for configurable stages, so count-to-list behavior remains exact after subsequent changes. Historical snapshots are labelled, client ownership is checked, and original row numbers provide stable pagination. With the existing 50k-row import limit and fewer than five staff, candidate filtering runs server-side over one snapshot; only 25 records are rendered per list page.
+- Interview and onboarding status lists are admin-editable in client settings and audited; saving merges the stages key without replacing other settings. The default labels remain provisional. Signed/rejected/start rules remain separate and unambiguous dates are counted even when an unrelated status needs review.
+- Meta delivery filters use the exported delivery string (`active`, `ended`, `completed`) and known end dates relative to the report end, not today's wall clock. Other states remain visible under All. Name parsing is display-only and conservative, with raw names retained.
+- Phase 4 channel performance, alerts, manual budgets, account context and print export were not implemented.
+
+### Owner demo checkpoint — pending
+
+No real exports, trusted report or owner feedback were supplied during Phase 3. The owner/developer must upload the pilot client's three exports, run `npm run reconcile`, compare the dashboard against the same confirmed periods/snapshot and trusted report, and walk the owner through it. **Record the owner's actual feedback here before starting Phase 4.** Do not treat synthetic checks as approval of definitions or successful real-data reconciliation.
+
+## Open owner decisions (unchanged)
 
 The defaults in §3.1 remain provisional: Wayfind branding, all active staff can see all clients, upload-based v1, latest-six candidate retention (implementation belongs to Phase 5), and provisional recruiting labels. The owner/developer must answer the Phase 0 access, branding, attribution, billing, and retention questions before later phases. No access or business definitions were invented in this implementation.

@@ -1,5 +1,45 @@
 # Implementation status
 
+## 2026-10-17 — Phase 3: Metrics and first dashboard
+
+**Implemented and verified with synthetic imports. Real-file reconciliation and the owner demo checkpoint remain pending.**
+
+Built pure Meta, Indeed and recruiting metric functions with definition/source/period/null-reason metadata; six headline KPIs; source status/upload dates; snapshot funnel, position/status/rejection breakdowns; paginated candidate lists for every recruiting count; Meta delivery and Indeed type filters; weighted totals; lifetime-budget utilization; conservative ad-name/location display parsing; keyboard-accessible definitions and responsive tables. Admin-editable interview/onboarding mappings are stored in client settings and audited. Dates, signed outcomes and status ambiguity follow the provisional rules in [metrics.md](metrics.md).
+
+Reporting reads only client-scoped active imports in a repeatable-read transaction. Drilldowns retain the exact snapshot and relevant stage mapping, enforce client ownership, preserve same-name rows and label superseded snapshots. Missing and empty sources remain distinct. The reconciliation script now prints the same reporting calculations alongside parser totals. No Phase 4 features were built.
+
+### How to run
+
+Follow the existing [README](../README.md) setup; no new dependencies or migrations are needed. Start `npm run dev`, sign in, select a client, upload/activate exports in Imports, then open Dashboard. Admins edit stage mappings in Settings. Staff can read dashboard/candidate populations without access to private originals. Test setup uses the documented disposable `TEST_DATABASE_URL` and a production build before Playwright.
+
+### Actual checks
+
+Final `npm run format:check`, `npm run lint`, `npm run typecheck` and `git diff --check` all passed.
+
+| Check                                                 | Result                                                              |
+| ----------------------------------------------------- | ------------------------------------------------------------------- |
+| `npm ci` using the pinned lockfile and writable cache | Passed                                                              |
+| `npm test`                                            | **36 passed** (23 parser + 13 reporting)                            |
+| `npm run test:integration` against PostgreSQL 17.11   | **14 passed** (9 import + 5 reporting)                              |
+| Production `npm run build`                            | Passed, including TypeScript and candidate/dashboard routes         |
+| Production-server Chromium `npm run test:e2e`         | **5 passed** (2 dashboard + 3 existing import journeys)             |
+| Desktop 1440px and mobile 375px dashboard screenshots | Inspected; tables scroll within cards, no page overflow             |
+| `npm run reconcile`                                   | Exit **2**: no real exports in `local-data/`; Appendix C unverified |
+
+Reporting tests check exact decimal sums, weighted ratios, zero denominators, unsupported Meta results, lifetime-only budgets, all Indeed row types, synthetic parser/dashboard reconciliation, large aggregate counts, signed-then-rejected candidates, ambiguous statuses/dates, configurable stages, and group/list population equality. Database tests cover replacement/revert without historical addition, missing sources, staff read access, denied cross-client/preview/inactive access, deterministic 25-row pagination, historical links and authorized/audited settings merges.
+
+Chromium clicked every recruiting count (including zero counts), checked the declared total against unique original rows across pages, checked ad filters/totals and unchanged headline periods, exercised admin stage settings, focused metric help by keyboard, denied another client's snapshot, checked a Meta-only dashboard with Indeed missing, and observed DOM updates during a delayed client switch for a header/data mismatch. Authentication uses the existing synthetic Supabase HTTP fixture, not a live Supabase account.
+
+The sandbox initially blocked Next.js CSS worker port binding and the tsx IPC socket. Re-running with local networking allowed and a fresh generated Next cache completed the build and checks without changing app configuration. CI configuration includes the new suites; remote CI was not run and no deployment was performed.
+
+### Remaining inputs and owners
+
+- **Owner/developer:** provide the pilot client's real exports and trusted report, confirm upload metadata, reconcile the same files/periods and walk the owner through the dashboard. Record actual feedback in `docs/decisions.md` before Phase 4. No owner feedback or real-data success is claimed.
+- **Wayfind/developer:** complete the existing live Supabase Auth/private Storage setup and verification from Phase 2. Synthetic browser auth does not establish live connectivity.
+- **Owner/developer:** confirm provisional funnel/branding definitions and the remaining Phase 0 decisions. The referenced HTML prototype is still absent; the implemented design follows the existing Wayfind app shell and required sections.
+
+Stop at Phase 3; the owner demo checkpoint is pending external inputs.
+
 ## 2026-10-17 — Phase 2: Imports
 
 **Built and locally verified with synthetic data. Live setup and real-file reconciliation remain unverified.**

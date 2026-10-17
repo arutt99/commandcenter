@@ -1,7 +1,16 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseFile } from '../src/server/importers';
-import type { CandidateRow } from '../src/server/importers/types';
+import type {
+  CandidateRow,
+  MetaRow,
+  IndeedRow,
+} from '../src/server/importers/types';
+import {
+  metaMetrics,
+  indeedMetrics,
+  recruitingMetrics,
+} from '../src/server/reporting/metrics';
 async function main() {
   const entries = await readdir('local-data', { withFileTypes: true }).catch(
     () => [],
@@ -22,6 +31,20 @@ async function main() {
       file.name,
     );
     // Never print candidate names, raw rows, or real filenames.
+    const period = result.detectedPeriod
+      ? `${result.detectedPeriod.start} – ${result.detectedPeriod.end}`
+      : result.detectedSnapshot
+        ? `Snapshot ${result.detectedSnapshot}`
+        : null;
+    const metrics = result.errors.length
+      ? null
+      : source === 'meta'
+        ? metaMetrics(result.rows as MetaRow[], period)
+        : source === 'indeed'
+          ? indeedMetrics(result.rows as IndeedRow[], period)
+          : source === 'driverhub'
+            ? recruitingMetrics(result.rows as CandidateRow[], period)
+            : null;
     console.log(
       JSON.stringify(
         {
@@ -29,6 +52,14 @@ async function main() {
           period: result.detectedPeriod,
           snapshot: result.detectedSnapshot,
           totals: result.totals,
+          dashboardMetrics: metrics
+            ? Object.fromEntries(
+                Object.entries(metrics).map(([key, metric]) => [
+                  key,
+                  metric.value,
+                ]),
+              )
+            : null,
           errorCount: result.errors.length,
           warningCount: result.warnings.length,
         },

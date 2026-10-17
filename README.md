@@ -1,8 +1,8 @@
 # Wayfind Command Center
 
-Phase 2: private, admin-only import previews for Meta CSV, Indeed CSV, and DriverHub XLSX. Confirmation replaces the active source snapshot; history supports audited revert. Dashboard metrics start in Phase 3.
+Phase 3: a client dashboard built from active Meta, Indeed and DriverHub uploads, with visible source dates, six headline KPIs, a recruiting snapshot, exact candidate drilldowns and filtered advertising tables. Admin-only imports replace the active source snapshot; history supports audited revert.
 
-The input repository contained only the build plan. This implementation includes the Next.js, PostgreSQL, Supabase Auth, client management, and empty dashboard foundation needed to run imports. See [docs/status.md](docs/status.md) for actual verification and remaining external setup.
+The app uses Next.js, PostgreSQL/Drizzle and invite-only Supabase Auth. See [docs/status.md](docs/status.md) for verification and remaining external setup, and [docs/metrics.md](docs/metrics.md) for calculation definitions.
 
 ## Local setup (Windows / PowerShell)
 
@@ -30,7 +30,7 @@ npm run create-admin -- your-email@example.com
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). The seed creates **Example Freight** and **Sample Transport**; both are synthetic. An admin can use **Manage clients** to add the real pilot client or edit branding/timezone. Client selection is kept in the URL. Use Manage clients to invite additional users as staff or administrators. Only admins can access imports and raw files; staff can access the client list and empty dashboard.
+Open [localhost:3000](http://localhost:3000). The seed creates **Example Freight** and **Sample Transport**; both are synthetic. An admin can use **Manage clients** to add the real pilot client or edit branding/timezone. Client selection is kept in the URL. Use Manage clients to invite additional users as staff or administrators. Only admins can access imports and raw files; active staff can view dashboards, candidate lists and settings.
 
 On macOS/Linux, use `cp .env.example .env` instead of `Copy-Item`. The remaining setup commands are the same. The create-admin command sends an actual invitation when run with live credentials; no real invitation was sent during implementation.
 
@@ -43,6 +43,16 @@ On macOS/Linux, use `cp .env.example .env` instead of `Copy-Item`. The remaining
 5. Review history to download an original or revert a superseded import. Cancel deletes a preview and its private file. A failed preview can be cancelled before retrying an identical file.
 
 Same-file duplicates are detected by SHA-256 for each client/source, including renamed files. Historical data is retained, but queries must select `imports.status = 'active'`; never sum history with active data. Candidates are individual rows, even when names match.
+
+## Reporting dashboard
+
+Open `/c/example-freight/dashboard` after uploading and activating exports. Missing sources show **Not uploaded** while available sources still render. A valid empty upload has zero counts/spend. Source cards show the report period or candidate snapshot and upload date; periods are not assumed to match across sources.
+
+Click any recruiting count to open that exact population, with 25 candidate rows per page. Links retain the original snapshot and stage mapping if either subsequently changes. Superseded snapshots are labelled historical. Candidate names remain separate records, and ambiguous fields show **Needs review** instead of inferred statuses.
+
+Meta delivery and Indeed type filters live in the URL and recompute the selected table totals. Header spend includes the full active export. Metric definitions are available on focus/hover and in KPI details. Administrators can edit exact interview/onboarding statuses in **Settings**; changes are audited. Default definitions remain provisional.
+
+The owner demo is pending. Put real exports in `local-data/`, run reconciliation, and review one pilot client's dashboard with the owner. Record actual feedback in [docs/decisions.md](docs/decisions.md) before Phase 4. There are no live vendor connections, channel-attribution calculations, alerts or PDF exports in Phase 3.
 
 Limits: 10 MiB, 50,000 rows, 100 MiB actual/declared inflated XLSX contents, 2,000 ZIP entries. XLSX requires the `Data` sheet and plain values. Macros, external workbook links, formulas, rich-text/hyperlink/error cells are rejected. Nothing is evaluated. Errors identify rows and columns without copying candidate data.
 
@@ -74,8 +84,8 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-On macOS/Linux use `export TEST_DATABASE_URL=postgresql://wayfind:wayfind@localhost:5432/wayfind_test`. Browser tests use a local synthetic Supabase HTTP fixture, real Next.js production server, and real PostgreSQL. Production auth has no test bypass. They verify all three upload formats, preview/confirmation/replacement/duplicate rejection/bad-row rejection/revert/download, sign-out and staff restrictions, and client switching. Run them after `npm run build`. A system Chromium is used when available, or set `CHROMIUM_PATH`.
+On macOS/Linux use `export TEST_DATABASE_URL=postgresql://wayfind:wayfind@localhost:5432/wayfind_test`. Browser tests use a local synthetic Supabase HTTP fixture, real Next.js production server, and real PostgreSQL. Production auth has no test bypass. They verify all three upload formats, preview/confirmation/replacement/duplicate rejection/bad-row rejection/revert/download, sign-out and staff restrictions, dashboard totals/filters, every recruiting count and its paginated list, cross-client access, stage settings, keyboard definitions, mobile layout, and delayed client switching. Run them after `npm run build`. A system Chromium is used when available, or set `CHROMIUM_PATH`.
 
-Synthetic fixtures are committed; regenerate them with `npm run fixtures`. Put real exports in git-ignored `local-data/` and run `npm run reconcile`. This prints aggregate totals and date metadata without candidate names or raw rows. Compare with Appendix C only for the sample client/period documented there. No files returns exit code 2 (not verified); parse errors return 1. Never commit real exports.
+Synthetic fixtures are committed; regenerate them with `npm run fixtures`. Put real exports in git-ignored `local-data/` and run `npm run reconcile`. This prints parser aggregates, dashboard metrics and detected date metadata without candidate names or raw rows. Compare with Appendix C only for the sample client/period documented there. Use the same confirmed dashboard period/snapshot; Indeed filename dates and the newest DriverHub creation date are suggestions. No files returns exit code 2 (not verified); parse errors return 1. Never commit real exports.
 
-CI runs format, lint, typecheck, parser tests, PostgreSQL integration tests, production build, and Playwright with synthetic data. Live vendor connections and dashboard calculations are outside Phase 2.
+CI runs format, lint, typecheck, parser/reporting tests, PostgreSQL integration tests, production build, and Playwright with synthetic data. Live Supabase verification, real-file reconciliation and owner demo feedback require Wayfind/developer setup and inputs.
