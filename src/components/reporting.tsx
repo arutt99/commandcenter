@@ -45,7 +45,7 @@ export function candidateUrl(
 ) {
   const query = new URLSearchParams({ snapshot, kind: filter.kind });
   if (filter.key !== undefined) query.set('key', filter.key);
-  // Preserve the exact population if an admin changes the mapping after rendering.
+  // Preserve the exact population if the owner changes the mapping after rendering.
   if (filter.kind === 'interview' || filter.kind === 'onboarding')
     query.set('stages', JSON.stringify(settings));
   return `/c/${slug}/candidates?${query}`;

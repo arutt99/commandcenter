@@ -1,12 +1,12 @@
 'use server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { ReportingService } from '@/server/reporting/service';
 import { stageSettingsSchema } from '@/server/reporting/metrics';
 
 export async function saveStages(slug: string, form: FormData) {
-  const actor = await requireAdmin();
+  const actor = await requireLocal();
   const split = (name: string) =>
     String(form.get(name) ?? '')
       .split(/\r?\n/)

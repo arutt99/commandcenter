@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   use: {
-    baseURL: 'http://127.0.0.1:3001',
+    baseURL: 'http://127.0.0.1:4311',
     headless: true,
     launchOptions: {
       executablePath:
@@ -15,8 +15,9 @@ export default defineConfig({
     },
   },
   webServer: {
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
     command: 'node --import tsx tests/e2e-server.ts',
-    url: 'http://127.0.0.1:3001/sign-in',
+    url: 'http://127.0.0.1:4311/',
     timeout: 120_000,
     reuseExistingServer: false,
   },

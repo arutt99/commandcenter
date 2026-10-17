@@ -1,16 +1,17 @@
-# Access status
+# Access and setup — local single-owner edition
 
-2026-10-17: no live credentials or real exports were supplied.
+No dashboard login, staff invitations, Supabase account, hosting account or external database is required. The owner runs the app on his machine; use its operating-system login, private application-data folder and screen lock. Source code updates remain in GitHub. The app itself accepts only local, same-origin browser traffic.
 
-| System                  | State                        | Evidence / next owner                                                                                        |
-| ----------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| PostgreSQL              | Local test database verified | PostgreSQL 17.11 integration checks; hosted database setup remains with developer                            |
-| Supabase Auth           | unknown                      | SDK implementation and HTTP fixture only; developer configures invite-only project and verifies real sign-in |
-| Supabase Storage        | unknown                      | Private-bucket implementation; developer supplies bucket and verifies a live upload/download                 |
-| Meta                    | unknown                      | CSV importer only; Phase 0 developer access check still required                                             |
-| Indeed                  | unknown                      | CSV importer only; Phase 0 developer access check still required                                             |
-| DriverHub / AvatarFleet | unknown                      | XLSX importer only; developer must confirm supported automation with vendor                                  |
-| HubSpot                 | unknown                      | Out of Phase 2 scope                                                                                         |
-| Google Calendar         | unknown                      | Out of Phase 2 scope                                                                                         |
+Automatic source access is still unverified and outside this change:
 
-No vendor API calls, messages, invitations, or deployments were performed with live accounts.
+| Source                  | Current state           | Next proof needed                                                         |
+| ----------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| Meta                    | upload_only             | Prove approved read access to one client ad account.                      |
+| Indeed                  | upload_only             | Confirm agency eligibility, employer-account access, limits and cost.     |
+| DriverHub / AvatarFleet | upload_only             | Obtain vendor confirmation of a supported API or scheduled file delivery. |
+| HubSpot                 | manual (future feature) | Confirm the relevant company fields and read permissions.                 |
+| Google Calendar         | manual (future feature) | Confirm the calendar, client mapping and read permissions.                |
+
+Provider permission is separate from signing in to this local dashboard. Tokens are not needed for uploads, and none are embedded in the app, committed to GitHub or claimed to be connected. Future tokens should use the operating system's credential vault.
+
+The owner's setup helper must smoke-test the launcher/browser opening on the actual operating system, confirm data/backup folders, copy a backup to a separate device, and reconcile the actual client exports. Local-machine testing uses synthetic data; it does not establish real vendor or real-report access.

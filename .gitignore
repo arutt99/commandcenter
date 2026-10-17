@@ -9,3 +9,8 @@ playwright-report/
 test-results/
 *.tsbuildinfo
 next-env.d.ts
+.wayfind-data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db

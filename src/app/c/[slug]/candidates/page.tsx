@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import {
   ReportingError,
   ReportingService,
@@ -28,7 +28,7 @@ export default async function Candidates({
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const actor = await requireUser();
+  const actor = await requireLocal();
   const { slug } = await params;
   const parsed = querySchema.safeParse(await searchParams);
   if (!parsed.success) notFound();

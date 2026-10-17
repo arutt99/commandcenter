@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { getClient } from '@/server/clients';
 import { ImportService } from '@/server/imports/service';
 import { PendingButton } from '@/components/pending-button';
@@ -11,15 +11,10 @@ export default async function Imports({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
-  const actor = await requireUser();
+  const actor = await requireLocal();
   const { slug } = await params;
   const client = await getClient(slug);
-  if (actor.role !== 'admin')
-    return (
-      <p className="notice">
-        Only administrators can upload, preview, revert, or download imports.
-      </p>
-    );
+
   const history = await new ImportService().history(actor, client.id);
   const query = await searchParams;
   return (

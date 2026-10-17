@@ -1,16 +1,15 @@
 'use server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { getClient } from '@/server/clients';
 import { ImportError, ImportService } from '@/server/imports/service';
-import { AccessError } from '@/server/permissions';
 import { MAX_BYTES, SOURCES, type Source } from '@/server/importers/types';
 import { z } from 'zod';
 const idSchema = z.uuid();
 const slugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 function safeError(e: unknown) {
-  return e instanceof ImportError || e instanceof AccessError
+  return e instanceof ImportError
     ? e.message
     : 'The operation could not finish. Check configuration or try again. Active data was not changed by an incomplete activation.';
 }
@@ -19,7 +18,7 @@ export async function upload(slugValue: string, form: FormData) {
   let id: string | undefined;
   let message: string | undefined;
   try {
-    const actor = await requireAdmin();
+    const actor = await requireLocal();
     const client = await getClient(slug);
     const file = form.get('file');
     const choice = String(form.get('source') ?? 'auto');
@@ -56,7 +55,7 @@ export async function mutate(
   const id = idSchema.parse(idValue);
   let message: string | undefined;
   try {
-    const actor = await requireAdmin();
+    const actor = await requireLocal();
     const client = await getClient(slug);
     const service = new ImportService();
     if (operation === 'confirm')

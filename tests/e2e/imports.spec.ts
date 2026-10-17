@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-async function login(page: Page, role = 'admin') {
-  await page.goto('/sign-in');
-  await page.getByLabel('Email', { exact: true }).fill(`${role}@example.test`);
-  await page.getByLabel('Password', { exact: true }).fill('synthetic-password');
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+async function openApp(page: Page) {
+  await page.goto('/');
   await expect(
     page.getByRole('heading', { name: 'Your clients' }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Sign in', exact: true }),
+  ).toHaveCount(0);
 }
 async function upload(page: Page, file: string) {
   await page.getByLabel('Export file').setInputFiles(`fixtures/${file}`);
@@ -20,10 +20,10 @@ async function confirm(page: Page) {
   await page.getByRole('button', { name: 'Confirm and activate' }).click();
   await expect(page.getByRole('status')).toContainText('Import activated');
 }
-test('admin previews, confirms, replaces, rejects a duplicate/bad row, and reverts', async ({
+test('owner previews, confirms, replaces, rejects a duplicate/bad row, and reverts', async ({
   page,
 }) => {
-  await login(page);
+  await openApp(page);
   await page.getByRole('link', { name: /Example Freight/ }).click();
   await page.getByRole('link', { name: 'Imports', exact: true }).click();
   await upload(page, 'meta.csv');
@@ -103,67 +103,10 @@ test('admin previews, confirms, replaces, rejects a duplicate/bad row, and rever
     page.getByText('No imports yet.', { exact: false }),
   ).toBeVisible();
 });
-test('signed-out sessions redirect and staff cannot upload or download', async ({
-  page,
-  request,
-}) => {
-  await page.goto('/c/example-freight/imports');
-  await expect(page).toHaveURL(/sign-in/);
-  await login(page);
-  await page.goto('/c/example-freight/imports');
-  const actionFields = await page
-    .locator('form')
-    .filter({ has: page.getByRole('button', { name: 'Upload and preview' }) })
-    .locator('input[type=hidden]')
-    .evaluateAll((inputs) =>
-      Object.fromEntries(
-        inputs.map((input) => [
-          (input as HTMLInputElement).name,
-          (input as HTMLInputElement).value,
-        ]),
-      ),
-    );
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await login(page, 'staff');
-  await page.goto('/c/example-freight/imports');
-  await expect(
-    page.getByText('Only administrators can upload', { exact: false }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Upload and preview' }),
-  ).toHaveCount(0);
-  const response = await request.get(
-    '/c/example-freight/imports/00000000-0000-4000-8000-000000000000/download',
-  );
-  expect(response.url()).toContain('/sign-in');
-  const staffResponse = await page.request.get(
-    '/c/example-freight/imports/00000000-0000-4000-8000-000000000000/download',
-  );
-  expect(staffResponse.status()).toBe(403);
-  // Replay an actual admin form directly as staff; hiding the button is insufficient.
-  const attemptedUpload = await page.request.post(
-    '/c/example-freight/imports',
-    {
-      headers: { Origin: 'http://127.0.0.1:3001' },
-      multipart: {
-        ...actionFields,
-        source: 'meta',
-        file: {
-          name: 'forbidden.csv',
-          mimeType: 'text/csv',
-          buffer: Buffer.from('not permitted'),
-        },
-      },
-    },
-  );
-  expect(attemptedUpload.url()).toContain(
-    'error=Administrator%20access%20is%20required.',
-  );
-});
 test('Indeed and DriverHub require explicit metadata confirmation', async ({
   page,
 }) => {
-  await login(page);
+  await openApp(page);
   await page.goto('/c/sample-transport/imports');
   await upload(page, 'Indeed_JobsCampaigns_20260504_20260610.csv');
   await expect(page.getByLabel('Reporting start')).toHaveValue('2026-05-04');

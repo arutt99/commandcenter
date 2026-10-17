@@ -1,21 +1,15 @@
 import Link from 'next/link';
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { getDb } from '@/server/db';
 import { clients } from '@/server/db/schema';
 import { PendingButton } from '@/components/pending-button';
-import { saveClient, inviteUser } from './actions';
+import { saveClient } from './actions';
 export default async function Admin({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
-  const actor = await requireUser();
-  if (actor.role !== 'admin')
-    return (
-      <main className="mx-auto max-w-4xl p-8">
-        <p className="notice">Administrator access is required.</p>
-      </main>
-    );
+  await requireLocal();
   const list = await getDb().select().from(clients);
   const query = await searchParams;
   function fields(client?: typeof clients.$inferSelect) {
@@ -92,27 +86,6 @@ export default async function Admin({
           </form>
         </details>
       ))}
-      <section className="card">
-        <h2>Invite a staff member</h2>
-        <form action={inviteUser} className="space-y-4">
-          <label>
-            Name
-            <input name="name" required maxLength={120} />
-          </label>
-          <label>
-            Email
-            <input name="email" type="email" required />
-          </label>
-          <label>
-            Role
-            <select name="role" defaultValue="staff">
-              <option value="staff">Staff</option>
-              <option value="admin">Administrator</option>
-            </select>
-          </label>
-          <PendingButton>Send invitation</PendingButton>
-        </form>
-      </section>
     </main>
   );
 }

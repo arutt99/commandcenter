@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { eq } from 'drizzle-orm';
-import { requireUser } from '@/server/auth';
+import { requireLocal } from '@/server/local/context';
 import { getDb } from '@/server/db';
 import { clients } from '@/server/db/schema';
-import { signOut } from './sign-in/actions';
 export default async function Home() {
-  const user = await requireUser();
+  await requireLocal();
   const list = await getDb()
     .select()
     .from(clients)
@@ -14,18 +13,17 @@ export default async function Home() {
     <main className="mx-auto max-w-5xl p-8">
       <div className="flex items-center justify-between gap-6">
         <p className="eyebrow">Wayfind / Command Center</p>
-        <form action={signOut}>
-          <button className="secondary">Sign out</button>
-        </form>
+        <Link href="/local">Local data & backups</Link>
       </div>
       <h1>Your clients</h1>
-      {user.role === 'admin' && (
+      {
         <p className="mb-4">
           <Link href="/admin">Manage clients</Link>
         </p>
-      )}
+      }
       <p className="muted mb-8">
-        Welcome, {user.name}. Open a client to manage their reporting exports.
+        Your data stays on this computer. Open a client to manage their
+        reporting exports.
       </p>
       <div className="grid gap-5 sm:grid-cols-2">
         {list.map((c) => (
@@ -42,8 +40,7 @@ export default async function Home() {
       </div>
       {!list.length && (
         <p className="card">
-          No clients yet. Run the synthetic seed script or add a client to the
-          database.
+          No clients yet. Choose Manage clients to add your first client.
         </p>
       )}
     </main>
