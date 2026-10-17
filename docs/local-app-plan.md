@@ -12,9 +12,21 @@ The user confirmed that the business has one owner and authorized conversion to 
 - Migrations run automatically. Launchers detect stale builds and open the browser. The serving process owns the instance lock, including if its launcher crashes.
 - Manual and daily automatic backups contain a consistent SQLite snapshot and every referenced original. Restores run offline, verify integrity/checksums, stage files, and preserve previous data. Keep external copies for machine-loss protection.
 
-## What remains
+## Remaining numbered phases
 
-The owner demo with actual exports, trusted-report reconciliation, provisional stage/branding decisions, candidate retention and other original product features remain open as documented in status/decisions. No later-phase channel performance, alerts, account context, PDF export or live integration has been silently added.
+[build-plan.md](build-plan.md) is the current detailed roadmap. The original phase numbers are retained so earlier work and PRs stay easy to identify.
+
+| Phase | Remaining work                                                                                                                                                         | Required for the complete upload-based product? |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| 4     | Channel performance, alerts, budgets, account context, data quality and PDF/print snapshot.                                                                            | Yes, after actual Phase 3 owner feedback.       |
+| 5     | Test/setup on the owner's machine, retention, audit viewer, local diagnostics, external restore and pilot sign-off. Backups/launchers/local storage are already built. | Yes.                                            |
+| 6     | Automatic Meta refresh, subject to approved access.                                                                                                                    | Optional.                                       |
+| 7     | Automatic Indeed refresh, subject to approved access.                                                                                                                  | Optional.                                       |
+| 8     | Supported DriverHub automation, subject to vendor confirmation.                                                                                                        | Optional.                                       |
+| 9     | HubSpot/Calendar convenience connections.                                                                                                                              | Optional.                                       |
+| 10    | Individually chosen mockup extras and scorecards.                                                                                                                      | Optional.                                       |
+
+Two core phases remain; adding all three main-source automations would add phases 6–8. Phase 0 is remaining owner/developer evidence collection, not another coding phase. The real-export demo/trusted-report reconciliation and actual-machine checks remain pending. No phase is declared accepted merely because synthetic checks passed.
 
 ## Future automatic connections
 

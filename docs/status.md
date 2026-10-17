@@ -1,5 +1,9 @@
 # Implementation status
 
+## 2026-10-17 — Roadmap aligned with local direction
+
+Updated the active numbered `docs/build-plan.md` and summary in `docs/local-app-plan.md`. Two core phases remain: Phase 4 insights/context/print and Phase 5 owner-machine hardening/pilot. Phases 6–10 are optional and provider-dependent where applicable. Phase 5 now credits the completed launch/storage/backup/restore work, removes hosted deployment/auth/staff tasks, and retains actual-machine, real-data, retention and external-recovery acceptance work. Optional refreshes run locally and keep provider permission requirements. Original phase numbers, metric rules and file formats are retained. No new product feature or owner approval was claimed.
+
 ## 2026-10-17 — Local single-owner edition (user-approved change)
 
 **Converted to a local app without dashboard accounts or cloud setup.** This supersedes the hosted Supabase/PostgreSQL/staff setup requirements in the historical phase entries below; [local-app-plan.md](local-app-plan.md) is the current architecture.
